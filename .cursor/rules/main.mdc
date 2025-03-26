@@ -1,0 +1,336 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+You are a 10x superintelligent expert developer. Your task is to produce the most optimized and maintainable code, following best practices and adhering to the principles of clean code and robust architecture.
+
+### Agentic Behavior, Agent Behavior
+
+# The AI should:
+
+- Read the entire codebase and understand what is going on, and at what stage the project is at.
+- Check dependencies.
+- Before coding, write a short plan outlining API endpoints, data flow, and UI components required.
+- Any time you run into a bug, reflect on 5-7 different possible sources of the problem, distill those down to 1-2 most likely sources, and then add logs to validate your assumptions before we move onto implementing the actual code fix.
+
+Look at the following instructions, use it as a general frame of reference and guideline of what needs to be done. Go. 
+
+To build an efficient NLP model under 100MB for sorting LinkedIn connections based on user queries, follow this structured approach:
+
+### **1. Data Parsing & Preprocessing**
+- **Structure the raw text**: Extract fields like `name`, `occupation`, `status`, and `connection_time` from the input (e.g., split by "Message" and parse key-value pairs).
+- **Clean text**: Lowercase, remove stopwords, and tokenize occupation fields (e.g., "Computer Science @ Waterloo" → ["computer", "science", "waterloo"]).
+- **Extract metadata**: Flag statuses like `is open to work` or `reachable` as binary features.
+
+---
+
+### **2. Feature Engineering**
+- **Keyword-based features**:
+  - **Job roles**: Engineer, Developer, CEO, Student.
+  - **Industries**: Fintech, Robotics, AI.
+  - **Companies/Institutions**: Waterloo, Twitter, Samsung.
+  - **Skills**: Python, ML, Systems Design.
+  - **Intent signals**: "Seeking Internships", "Building in CS for Climate".
+- **Use lightweight embeddings**:
+  - Pre-trained **GloVe** (6B tokens, 100D) or **FastText** (subword embeddings) to encode occupation text into compact vectors (~50MB).
+  - Augment with TF-IDF for domain-specific terms (e.g., "fintech" or "co-op").
+ 
+---
+
+### **3. Model Architecture**
+- **Dual-Encoder Siamese Network**:
+  - **Query Encoder**: Converts user prompts (e.g., "job in California") into vectors.
+  - **Connection Encoder**: Converts occupation text into vectors.
+  - Use a small neural network (2-3 dense layers) to map embeddings to a shared space.
+  - Train with cosine similarity loss to maximize relevance between matching query-connection pairs.
+- **Efficiency tweaks**:
+  - Limit embedding dimensions (e.g., 100D).
+  - Use quantization-aware training to reduce model size.
+  - Prune redundant neurons post-training.
+
+---
+
+### **4. Training Data & Strategy**
+- **Synthetic data generation**:
+  - Create queries (e.g., "find fintech developers") and manually label matching connections from the example data.
+  - Expand with variations (e.g., "help with startups" → match "Founder/CEO" roles).
+- **Transfer learning**:
+  - Initialize with pre-trained embeddings (GloVe/FastText) to leverage semantic knowledge.
+  - Fine-tune on LinkedIn-specific data (occupations, titles) to adapt to the domain.
+
+---
+
+### **5. Query Processing & Ranking**
+- **Keyword expansion**: Map "California" to companies like Twitter (SF-based) or universities (e.g., Stanford).
+- **Hybrid scoring**:
+  - **Semantic similarity** (cosine similarity between query and connection embeddings).
+  - **Keyword overlap** (TF-IDF score for critical terms like "Software Engineer").
+  - **Status boost**: Prioritize "open to work" or "reachable" users.
+- **Rank connections** by weighted scores (e.g., 70% semantic + 30% keyword).
+
+---
+
+### **6. Optimization for Size**
+- **Model compression**:
+  - Use **knowledge distillation** to train a smaller student model.
+  - Apply **pruning** to remove non-critical neurons.
+  - Quantize weights to 8-bit integers (reduces size by ~4x).
+- **Lightweight libraries**:
+  - Implement with **scikit-learn** (TF-IDF) or **TensorFlow Lite** for edge deployment.
+
+---
+
+### **Example Output**
+For a query like *"find fintech developers in Waterloo"*:
+1. Match "fintech" (occupation: "Fintech Developer @ Infonancial").
+2. Filter by "Waterloo" (occupation: "CS @ University of Waterloo").
+3. Boost "reachable" status (e.g., Gateek Chandak).
+4. Return ranked list: Gateek Chandak, Brian Zhang (SWE @ X/Twitter).
+
+---
+
+### **Tools & Libraries**
+- **Embeddings**: GloVe (50MB), spaCy (small NER pipeline).
+- **Model**: TensorFlow/Keras (pruned model <50MB).
+- **Similarity**: FAISS (efficient vector search).
+
+This approach balances accuracy and efficiency, ensuring the model stays under 100MB while leveraging semantic understanding and domain-specific signals.
+### **Deep Technical Overview: Building a Lightweight NLP Model for LinkedIn Connection Ranking**
+
+---
+
+#### **1. Data Parsing & Structuring**
+- **Text Segmentation**: Split raw text into individual connection entries using "Message" as the delimiter.  
+- **Field Extraction**: Use regex or rule-based parsing to extract structured fields:  
+  - `name` (e.g., "Bruce Wang" after "Member’s name").  
+  - `occupation` (e.g., "Computer Science @ Waterloo").  
+  - `status` (e.g., "reachable" or "open to work" appended to names).  
+  - `connection_time` (e.g., "Connected 1 day ago" → convert to numerical days).  
+- **Normalization**: Clean text by lowercasing, removing punctuation, and splitting compound terms (e.g., "Mechatronics Engineer" → ["mechatronics", "engineer"]).
+
+---
+
+#### **2. Feature Engineering & Embeddings**
+- **Keyword Taxonomies**:  
+  - **Job Roles**: Engineer, Developer, CEO.  
+  - **Industries**: Fintech, Robotics, AI.  
+  - **Institutions**: University of Waterloo, Twitter.  
+  - **Intent Signals**: "Seeking Internships", "Building in CS for Climate".  
+  - Encode these as binary flags or TF-IDF scores.  
+- **Compact Embeddings**:  
+  - Use **pre-trained GloVe (100D)** or **FastText** to convert occupation text into fixed-length vectors.  
+  - Augment with custom embeddings for LinkedIn-specific terms (e.g., "co-op", "Systems Design") via **domain adaptation**.  
+- **Metadata Features**:  
+  - Binary flags for statuses (`is_reachable`, `open_to_work`).  
+  - Time decay: Weight recent connections higher (e.g., `1 / log(days_since_connection + 1)`).
+
+---
+
+#### **3. Model Architecture: Dual-Encoder Siamese Network**  
+- **Query Encoder**:  
+  - Processes user prompts (e.g., "fintech developer in Waterloo").  
+  - Uses **average pooling** over word embeddings + TF-IDF keywords to generate a 100D vector.  
+- **Connection Encoder**:  
+  - Input: Concatenated features – occupation embeddings, keyword flags, status, and time decay.  
+  - Architecture: 2 dense layers (ReLU activation) to project into a 100D shared space.  
+- **Similarity Metric**:  
+  - Compute cosine similarity between query and connection vectors.  
+  - Train with **triplet loss**: Maximize similarity for relevant pairs, minimize for irrelevant ones.  
+
+---
+
+#### **4. Training Strategy**  
+- **Synthetic Data Generation**:  
+  - Create query-connection pairs:  
+    - Positive pairs: Manually align queries like "startup fundraising" with occupations containing "Founder" or "CEO".  
+    - Negative pairs: Randomly sample mismatched connections.  
+  - Expand via paraphrasing (e.g., "job in SF" ↔ "opportunities in San Francisco").  
+- **Transfer Learning**:  
+  - Initialize embeddings with GloVe/FastText to leverage general semantics.  
+  - Fine-tune on LinkedIn-specific data to capture domain nuances (e.g., "co-op" ≠ "cooperative").  
+- **Regularization**: Apply dropout (20%) and L2 regularization to prevent overfitting.  
+
+---
+
+#### **5. Hybrid Ranking System**  
+- **Semantic Similarity**: Primary score from cosine similarity of embeddings.  
+- **Keyword Boosts**:  
+  - Exact matches (e.g., "Waterloo" in occupation) receive a fixed bonus.  
+  - TF-IDF scores for critical terms (e.g., "Software Engineer").  
+- **Status & Time Weighting**:  
+  - Multiply scores by `1.2` for "reachable" or "open to work" users.  
+  - Downweight older connections via time decay.  
+- **Final Score**:  
+  - Weighted sum: `0.6 * semantic + 0.3 * keyword + 0.1 * status/time`.  
+
+---
+
+#### **6. Model Compression & Optimization**  
+- **Pruning**: Remove neurons with near-zero weights post-training.  
+- **Quantization**: Convert model weights from 32-bit floats to 8-bit integers (~4x size reduction).  
+- **Vector Search Optimization**:  
+  - Use **FAISS** for efficient approximate nearest-neighbor search.  
+  - Precompute connection embeddings to enable real-time query responses.  
+
+---
+
+#### **7. Validation & Iteration**  
+- **Evaluation Metrics**:  
+  - **Precision@K**: % of top-K results that are relevant.  
+  - **Mean Reciprocal Rank (MRR)**: Measure ranking quality.  
+- **A/B Testing**: Compare against rule-based baselines (e.g., keyword search).  
+- **Feedback Loop**: Log user interactions to refine keyword taxonomies and training data.  
+
+---
+
+#### **Key Challenges & Mitigations**  
+- **Ambiguity in Queries**:  
+  - Use synonym expansion (e.g., "California" → "SF", "Silicon Valley").  
+  - Leverage metadata (e.g., prioritize connections at California-based companies).  
+- **Data Sparsity**:  
+  - Augment training data with back-translation (e.g., rephrase "AI developer" as "Machine Learning Engineer").  
+- **Model Size vs. Accuracy**:  
+  - Trade off embedding dimensions (100D → 50D) if size exceeds 100MB.  
+  - Replace dense layers with depthwise separable convolutions.  
+
+---
+
+### **Outcome**  
+A sub-100MB model that intelligently ranks LinkedIn connections by blending semantic understanding (embeddings), keyword relevance, and user status. It enables real-time queries like:  
+- *"Find mechatronics engineers open to work"* → Prioritizes "Amir Hamadache" (Mechatronics Engineer + reachable).  
+- *"Connect with AI startup founders"* → Surfaces "Ekta Srivastav" (CEO, GenAI) and "Monisha Sherawat" (Co-Founder).  
+
+This approach balances efficiency, interpretability, and domain-specific customization without relying on LLMs.
+
+
+
+
+
+
+
+
+
+
+
+
+f = open("connections.rtf", "r")
+people = {} # {"name":"description"}
+pos = 1
+curName = ""
+for x in f:
+    if(x == '\n'):
+        continue
+    if x == "Message\n":
+        pos = 0
+    if(pos == 3):
+        curName = x.strip()
+    if pos == 5:
+        occupationList = x.split("|")
+        temp = []
+        for i in occupationList:
+            if(i != "" and ("@" in i)):
+                temp.append(i)
+        occupationList = temp
+        if(len(occupationList) > 0):
+            people[curName] = occupationList
+
+
+
+
+    pos+=1
+
+
+people2 = {}
+for i in people:
+    temp = []
+    for j in people[i]:
+        j = j.split("@")
+        tempJ = []
+        for pos in range(len(j)):
+            if(j[pos] != ""):
+                if(j[pos][0] == " " or j[pos][0] == "\n"):
+                    tempJ.append(j[pos][1:len(j[pos])-1])
+                else:
+                    tempJ.append(j[pos])
+        temp.append(tempJ)
+       
+    people2[i] = temp
+
+
+
+
+people = people2
+
+
+
+
+import re
+import numpy as np
+import spacy
+from sklearn.feature_extraction.text import TfidfVectorizer
+from geotext import GeoText
+import tensorflow as tf
+
+
+# ----------------------------
+# 1. Load spaCy model
+# ----------------------------
+# First run these commands in your terminal:
+# pip install spacy
+# python -m spacy download en_core_web_sm
+nlp = spacy.load("en_core_web_sm")
+
+
+# ----------------------------
+# 2. Data Standardization
+# ----------------------------
+def standardize_entries(people):
+    standardized = {}
+    for name, entries in people.items():
+        processed = []
+        for entry in entries:
+            parts = []
+            for part in entry:
+                tokens = re.split(r'[,/&()]', part.lower())
+                tokens = [t.strip() for t in tokens if t.strip()]
+                parts.extend(tokens)
+            processed.append(parts)
+        standardized[name] = processed
+    return standardized
+
+
+
+
+
+
+people_std = standardize_entries(people)
+print(people_std)
+# ----------------------------
+# 3. Feature Engineering
+# ----------------------------
+def text_to_vec(text):
+    doc = nlp(text)
+    return doc.vector  # 96-dimensional vector
+
+
+# Create text corpus
+corpus = [' '.join([t for entry in entries for t in entry])
+          for entries in people_std.values()]
+
+
+# TF-IDF for key terms
+tfidf = TfidfVectorizer(
+    max_features=50,
+    stop_words='english',
+    vocabulary=['software', 'engineer', 'student', 'intern',
+                'ai', 'machine', 'learning', 'computer']
+)
+tfidf_matrix = tfidf.fit_transform(corpus)
+
+
+# spaCy embeddings
+embedding_matrix = np.array([text_to_vec(text) for text in corpus])
+
+
+
