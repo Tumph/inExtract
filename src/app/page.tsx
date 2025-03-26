@@ -13,7 +13,20 @@ export default function LinkedInConnectionsAnalyzer() {
   const [showPopup, setShowPopup] = useState(false)
   const [isError, setIsError] = useState(false)
   const [errorMessage, setErrorMessage] = useState("")
-
+  const validateFormat2 = (text: string): boolean => {
+    const hasConnectedOn = text.includes("Connected") && text.includes("ago");
+    const hasMessage = text.includes("Message");
+    const sections = text.split("Message").filter(s=>s.trim()!=="");
+    if(sections.length === 0){
+      return false;
+    }
+    const sampleSection = sections[0];
+    const lines = sampleSection.split('\n').map(line => line.trim()).filter(line => line !== "");
+    //alert(lines.length)
+    const hasEnoughLines = lines.length >= 5;
+    const hasSectionWithConnectedOn = sampleSection.includes("Connected")&&sampleSection.includes("ago");
+    return (hasConnectedOn && hasMessage && hasEnoughLines && hasSectionWithConnectedOn)||(validateFormat2(text));
+  }
   // Function to validate LinkedIn connections format
   const validateFormat = (text: string): boolean => {
     // Check for essential patterns that should be in LinkedIn connections export
@@ -37,7 +50,7 @@ export default function LinkedInConnectionsAnalyzer() {
     const hasEnoughLines = lines.length >= 3;
     const hasSectionWithConnectedOn = sampleSection.includes("connected on");
     
-    return hasConnectedOn && hasMessage && hasEnoughLines && hasSectionWithConnectedOn;
+    return (hasConnectedOn && hasMessage && hasEnoughLines && hasSectionWithConnectedOn)||(validateFormat2(text));
   }
 
   // Parse LinkedIn connections from text
@@ -60,34 +73,39 @@ export default function LinkedInConnectionsAnalyzer() {
       let nameFound = false;
       let name = "";
       let description = "";
-      
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        
-        // Skip profile picture lines
-        if (line.includes("profile picture")) {
-          continue;
+      if(lines.length !== 6){
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          
+          // Skip profile picture lines
+          if (line.includes("profile picture")) {
+            continue;
+          }
+          
+          // Skip "connected on" lines
+          if (line.includes("connected on")) {
+            continue;
+          }
+          
+          // If we haven't found the name yet, this line is the name
+          if (!nameFound) {
+            // Clean up names with possessive 's (e.g., "Samuel Zhang's")
+            name = line.replace(/'s$/, '');
+            nameFound = true;
+            continue;
+          }
+          
+          // If we have the name, this is the description
+          if (nameFound && !description) {
+            description = line;
+            break; // We have both name and description, no need to continue
+          }
         }
-        
-        // Skip "connected on" lines
-        if (line.includes("connected on")) {
-          continue;
-        }
-        
-        // If we haven't found the name yet, this line is the name
-        if (!nameFound) {
-          // Clean up names with possessive 's (e.g., "Samuel Zhang's")
-          name = line.replace(/'s$/, '');
-          nameFound = true;
-          continue;
-        }
-        
-        // If we have the name, this is the description
-        if (nameFound && !description) {
-          description = line;
-          break; // We have both name and description, no need to continue
-        }
+      }else{
+        name = lines[0];
+        description = lines[4];
       }
+      
       
       // Add to the people object if we have both name and description
       if (name && description) {
