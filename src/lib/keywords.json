@@ -34,7 +34,7 @@
     "media", "marketing", "consulting", "insurance", "government",
     "nonprofit", "startup", "enterprise", "fintech", "edtech", "biotech",
     "robotics", "automation", "manufacturing", "automotive", "aerospace",
-    "semiconductor", "electronics", "hardware"
+    "semiconductor", "electronics", "hardware", "venture capital", "vc"
   ],
   "companies": [
     "google", "microsoft", "amazon", "apple", "facebook", "meta", 
@@ -44,7 +44,8 @@
     "deloitte", "accenture", "mckinsey", "bain", "bcg", "kpmg",
     "pwc", "ey", "tesla", "spacex", "nasa", "intel", "amd", "nvidia",
     "samsung", "huawei", "toyota", "bmw", "mercedes", "ford",
-    "qualcomm", "broadcom", "arm", "tsmc", "micron", "texas instruments"
+    "qualcomm", "broadcom", "arm", "tsmc", "micron", "texas instruments",
+    "y combinator", "yc", "sequoia", "andreessen", "horowitz", "a16z", "accel"
   ],
   "universities": [
     "waterloo", "uwaterloo", "university of waterloo", "toronto", "uoft",
@@ -53,6 +54,20 @@
     "mit", "stanford", "harvard", "princeton", "yale", "berkeley",
     "cambridge", "oxford", "imperial", "eth", "tsinghua", "peking"
   ],
+  "locations": [
+    "california", "new york", "texas", "ontario", "london", "tokyo", 
+    "san francisco", "toronto", "seattle", "vancouver", "boston", "chicago",
+    "austin", "miami", "singapore", "berlin", "paris", "sydney", "bangalore",
+    "tel aviv", "bay area", "silicon valley"
+  ],
+  "locationSynonyms": {
+    "california": ["ca", "san francisco", "los angeles", "silicon valley", "bay area"],
+    "new york": ["ny", "nyc", "manhattan"],
+    "texas": ["tx", "austin", "dallas", "houston"],
+    "ontario": ["on", "toronto", "waterloo", "ottawa"],
+    "bay area": ["silicon valley", "san francisco", "sf", "san jose", "palo alto"],
+    "silicon valley": ["bay area", "san francisco", "palo alto", "menlo park", "mountain view"]
+  },
   "statusKeywords": [
     "seeking", "looking", "open", "available", "searching", "actively",
     "opportunities", "roles", "positions", "jobs", "internships", "co-op"
@@ -76,9 +91,27 @@
     "research": ["research", "academic", "professor", "phd", "postdoc", "scientist", "scholar", "fellow", "faculty"],
     "consulting": ["consulting", "consultant", "advisor", "strategy", "management consulting"],
     "nonprofit": ["nonprofit", "ngo", "social impact", "charity", "foundation", "social enterprise", "humanitarian", "volunteer"],
-    "startup": ["startup", "founder", "entrepreneur", "co-founder", "venture", "seed", "early-stage", "incubator", "accelerator"],
-    "healthcare": ["healthcare", "medical", "health", "doctor", "physician", "clinical", "biotech", "pharmaceutical"]
+    "startup": ["startup", "founder", "entrepreneur", "co-founder", "venture", "seed", "early-stage", "incubator", "accelerator", "yc", "y combinator", "fellow", "fellowship"],
+    "healthcare": ["healthcare", "medical", "health", "doctor", "physician", "clinical", "biotech", "pharmaceutical"],
+    "investing": ["investor", "investing", "vc", "venture capital", "angel", "funding", "fundraising", "pitch", "cap table"]
   },
+  "topicKeywords": {
+    "robotics": ["robotics", "robot", "mechatronics", "automation", "mechanical", "hardware engineer", "embedded systems"],
+    "ai": ["ai", "artificial intelligence", "machine learning", "ml", "deep learning", "neural networks", "nlp", "computer vision"],
+    "data": ["data", "analytics", "database", "sql", "statistics", "data science", "big data", "business intelligence"],
+    "software": ["software", "programming", "coding", "development", "frontend", "backend", "web", "mobile", "app"],
+    "fintech": ["fintech", "financial technology", "payments", "blockchain", "cryptocurrency", "banking"],
+    "hardware": ["hardware", "chip", "semiconductor", "vlsi", "asic", "fpga", "circuits", "electronics", "electrical engineering"],
+    "cybersecurity": ["security", "cyber", "encryption", "privacy", "infosec", "information security", "hacker", "pen testing"],
+    "cloud": ["cloud", "aws", "azure", "gcp", "serverless", "kubernetes", "containers", "devops", "infrastructure"],
+    "product": ["product", "design", "ux", "ui", "user research", "wireframes", "prototyping", "usability"],
+    "business": ["business", "entrepreneurship", "startup", "founder", "ceo", "leadership", "management", "strategy"],
+    "startupecosystem": ["venture", "startup", "entrepreneur", "founder", "co-founder", "incubator", "accelerator", "seed", "series a", "yc", "y combinator", "fellows", "fellowship", "techstars", "500 startups", "pitch", "vc", "angel", "funding", "fundraising"]
+  },
+  "seniorRoles": [
+    "vp", "director", "ceo", "founder", "president", "head", "lead", "senior", 
+    "principal", "chief", "partner", "executive", "chairman", "c-level", "cto", "cfo", "coo"
+  ],
   "companyPairs": [
     ["goldman", "sachs"],
     ["morgan", "stanley"],
@@ -188,7 +221,35 @@
     "mechanical": ["mechanic", "mechanics", "mechanical engineer", "mechatronics", "hardware"],
     "engineering": ["engineer", "technology", "technical", "development", "design", "systems"],
     "chips": ["semiconductors", "microprocessors", "integrated circuits", "processors", "vlsi", "hardware", "computer chips", "microchips", "semiconductor", "ic"],
-    "hardware": ["electronic", "electronics", "chip", "chips", "circuit", "circuits", "board", "boards", "device", "devices", "component", "components", "embedded", "physical"]
+    "hardware": ["electronic", "electronics", "chip", "chips", "circuit", "circuits", "board", "boards", "device", "devices", "component", "components", "embedded", "physical"],
+    "vp": ["vice president", "executive", "leader", "senior", "leadership"],
+    "senior": ["principal", "staff", "expert", "experienced", "lead", "manager", "director"],
+    "junior": ["entry level", "associate", "beginner", "new grad", "recent graduate"],
+    "researcher": ["scientist", "research engineer", "research scientist", "phd", "academic"],
+    "consultant": ["advisor", "expert", "specialist", "counselor"],
+    "manager": ["lead", "director", "head", "supervisor", "boss"],
+    "cybersecurity": ["security", "cyber", "information security", "security engineer", "security analyst"],
+    "cloud": ["aws", "azure", "gcp", "cloud computing", "cloud engineer", "devops"],
+    "webdev": ["web", "frontend", "backend", "fullstack", "ui", "ux", "html", "css", "javascript"],
+    "mobiledev": ["mobile", "ios", "android", "app", "mobile app", "mobile developer"],
+    "yc": ["y combinator", "ycombinator", "y-combinator", "yc fellowship", "yc fellows"],
+    "fellow": ["fellowship", "fellows", "member", "participant", "candidate"],
+    "vc": ["venture capital", "venture capitalist", "investor", "angel investor", "funding"]
+  },
+  "acronyms": {
+    "yc": "y combinator",
+    "vc": "venture capital",
+    "ai": "artificial intelligence",
+    "ml": "machine learning",
+    "pm": "product manager",
+    "swe": "software engineer",
+    "cs": "computer science",
+    "ece": "electrical and computer engineering",
+    "ceo": "chief executive officer",
+    "cto": "chief technology officer",
+    "cfo": "chief financial officer",
+    "ui": "user interface",
+    "ux": "user experience"
   },
   "tfidfVocabulary": [
     "software", "engineer", "student", "science", "ai", "machine", "learning", "computer",
@@ -204,6 +265,7 @@
     "automotive", "aerospace", "waterloo", "uwaterloo", "toronto", "uoft", "mcmaster", "western",
     "hardware", "chip", "chips", "semiconductor", "semiconductors", "processor", "processors",
     "circuit", "circuits", "fpga", "asic", "vlsi", "embedded", "electronics", "electrical",
-    "microprocessor", "microcontroller", "digital", "analog"
+    "microprocessor", "microcontroller", "digital", "analog", "yc", "y", "combinator", "venture",
+    "capital", "vc", "startup", "accelerator", "incubator", "fellow", "fellowship", "fellows"
   ]
 } 

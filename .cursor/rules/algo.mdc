@@ -1,0 +1,379 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+I’ve deeply analyzed your keywords.json and nlp-utils.ts files, which form the backbone of your LinkedIn connection-matching web app. Your current algorithm is a solid foundation, relying on keyword matching, intent extraction, and semantic scoring to rank connections based on user prompts. However, to make it better—more precise, flexible, and capable of handling diverse GPT-style prompts like "find me the best person to help me get in touch with Goldman Sachs VPs" or "give me people who could be helpful in learning robotics"—we can enhance it with vector-based similarity, improved intent detection, and dynamic weighting, all while keeping it local and avoiding hardcoded values or external APIs. Below, I’ll outline the current system, identify its limitations, and provide detailed, actionable instructions to improve it within your two files.
+Analysis of the Current System
+How It Works
+keywords.json:
+Contains categorized lists (e.g., jobTitles, techSkills, companies) and mappings (e.g., actionKeywords, synonymMap, tfidfVocabulary) to support matching.
+Provides a static vocabulary for intent extraction and scoring, but tfidfVocabulary is unused in the current code.
+nlp-utils.ts:
+Normalization and Tokenization: normalizeText and tokenize preprocess text by lowercasing, removing special characters, and splitting into words.
+Intent Extraction (extractIntent): Identifies action (e.g., "find", "help"), target (e.g., "job"), company, role, etc., from the query using keyword matches.
+Profile Attribute Extraction (extractProfileAttributes): Pulls roles, skills, companies, etc., from connection descriptions, with some hardcoded topic rules (e.g., "robotics" if "mechatronics" appears).
+Semantic Relevance (calculateSemanticRelevance): Scores matches between query intent and profile attributes with fixed weights (e.g., topic match = 15, company match = 10).
+Relevance Scoring (calculateRelevanceScore): Combines keyword matching (weighted 0.3) and semantic scoring (weighted 0.7), ensuring a minimum score of 0.1.
+Connection Analysis (analyzeConnections): Ranks all connections by score.
+Strengths
+Handles basic keyword matching and intent detection well (e.g., "Goldman Sachs" or "robotics").
+Uses a semantic scoring system that prioritizes meaningful matches (e.g., company or topic).
+Ensures all connections are ranked with a minimum score, avoiding exclusion.
+Limitations
+Limited Semantic Understanding:
+Relies on exact keyword matches or simple synonyms, missing deeper relationships (e.g., "coding" and "software development" aren’t fully linked beyond synonymMap).
+Hardcoded topic rules (e.g., "robotics" detection) are rigid and incomplete.
+Underutilized TF-IDF Vocabulary:
+tfidfVocabulary is defined but unused, missing an opportunity to weigh term importance dynamically.
+Static Scoring Weights:
+Fixed weights (e.g., topic = 15, company = 10) don’t adapt to prompt context (e.g., "learning robotics" vs. "Goldman Sachs VPs").
+Keyword matching (0.3) vs. semantic scoring (0.7) is arbitrary and not prompt-specific.
+Weak Location Handling:
+Location is tied to universities, missing broader regions like "California" or "New York."
+Incomplete Intent Extraction:
+Only extracts one instance per category (e.g., one role), missing complex prompts like "help me connect with VPs and directors."
+Lacks topic extraction beyond what’s hardcoded in extractProfileAttributes.
+No Contextual Boosting:
+Doesn’t prioritize connections based on their influence (e.g., a "VP" vs. a "junior" at Goldman Sachs) or recency.
+Improvements to the Matching Algorithm
+To address these limitations and make the algorithm more robust for your LinkedIn app, I propose the following enhancements:
+Use TF-IDF vector similarity for semantic matching.
+Improve intent and attribute extraction with synonyms and multiple matches.
+Add dynamic scoring weights based on prompt context.
+Expand location support.
+Boost scores for influence and recency (if detectable).
+All changes will stay within keywords.json and nlp-utils.ts, remaining local and dynamic.
+1. Incorporate TF-IDF Vector Similarity
+The unused tfidfVocabulary can be leveraged to compute vector representations of queries and connection descriptions, improving semantic matching.
+Why?
+TF-IDF weights terms by their importance (frequency in a document vs. rarity across all documents), capturing subtle relationships (e.g., "robotics" and "mechatronics").
+Cosine similarity between vectors measures overall relevance beyond exact matches.
+Steps:
+Add TF-IDF Functions to nlp-utils.ts:
+typescript
+function computeTFIDF(descriptions: string[], vocabulary: string[]): { tfidfMatrix: number[][], idf: number[] } {
+  const N = descriptions.length;
+  const tokenizedDocs = descriptions.map(desc => tokenize(desc));
+  
+  const df: { [term: string]: number } = {};
+  vocabulary.forEach(term => {
+    df[term] = tokenizedDocs.filter(doc => doc.includes(term)).length;
+  });
+  
+  const idf = vocabulary.map(term => Math.log(N / (df[term] + 1))); // +1 avoids division by zero
+  
+  const tfidfMatrix = tokenizedDocs.map(doc => {
+    const tf: { [term: string]: number } = {};
+    doc.forEach(word => {
+      if (vocabulary.includes(word)) tf[word] = (tf[word] || 0) + 1 / doc.length; // Normalize by doc length
+    });
+    return vocabulary.map((term, i) => (tf[term] || 0) * idf[i]);
+  });
+  
+  return { tfidfMatrix, idf };
+}
+
+function computeQueryTFIDF(query: string, vocabulary: string[], idf: number[]): number[] {
+  const tokens = tokenize(query);
+  const tf: { [term: string]: number } = {};
+  tokens.forEach(word => {
+    if (vocabulary.includes(word)) tf[word] = (tf[word] || 0) + 1 / tokens.length;
+  });
+  return vocabulary.map((term, i) => (tf[term] || 0) * idf[i]);
+}
+
+function cosineSimilarity(vecA: number[], vecB: number[]): number {
+  const dotProduct = vecA.reduce((sum, a, i) => sum + a * vecB[i], 0);
+  const normA = Math.sqrt(vecA.reduce((sum, a) => sum + a * a, 0));
+  const normB = Math.sqrt(vecB.reduce((sum, b) => sum + b * b, 0));
+  return normA === 0 || normB === 0 ? 0 : dotProduct / (normA * normB);
+}
+Use in Scoring (See Step 4):
+Compute TF-IDF vectors in analyzeConnections and integrate similarity into the total score.
+2. Enhance Intent and Attribute Extraction
+Improve extractIntent and extractProfileAttributes to handle multiple matches and use synonyms dynamically.
+Why?
+Captures complex prompts (e.g., "VPs and directors") and broader concepts (e.g., "coding" as "software").
+Reduces reliance on hardcoded rules.
+Steps:
+Update extractIntent in nlp-utils.ts:
+typescript
+function extractIntent(query: string): {
+  actions: string[],
+  targets: string[],
+  industries: string[],
+  companies: string[],
+  roles: string[],
+  locations: string[],
+  topics: string[]
+} {
+  const normalized = normalizeText(query);
+  const intent = {
+    actions: [],
+    targets: [],
+    industries: [],
+    companies: [],
+    roles: [],
+    locations: [],
+    topics: []
+  };
+  
+  // Actions
+  for (const [actionType, keywordList] of Object.entries(keywords.actionKeywords)) {
+    if (keywordList.some(kw => normalized.includes(kw))) intent.actions.push(actionType);
+  }
+  
+  // Targets (with synonyms)
+  for (const [targetType, keywordList] of Object.entries(keywords.targetKeywords)) {
+    const synonyms = keywords.synonymMap[targetType] || [];
+    if (keywordList.concat(synonyms).some(kw => normalized.includes(kw))) intent.targets.push(targetType);
+  }
+  
+  // Industries
+  for (const ind of keywords.industries) {
+    if (normalized.includes(ind)) intent.industries.push(ind);
+  }
+  
+  // Companies (including pairs)
+  for (const company of keywords.companies) {
+    if (normalized.includes(company)) intent.companies.push(company);
+  }
+  for (const [first, second] of keywords.companyPairs) {
+    if (normalized.includes(first) && normalized.includes(second)) intent.companies.push(`${first} ${second}`);
+  }
+  
+  // Roles (with synonyms)
+  for (const title of keywords.jobTitles) {
+    const synonyms = keywords.synonymMap[title] || [];
+    if ([title].concat(synonyms).some(kw => normalized.includes(kw))) intent.roles.push(title);
+  }
+  
+  // Locations (universities only for now, expanded later)
+  for (const uni of keywords.universities) {
+    if (normalized.includes(uni)) intent.locations.push(uni);
+  }
+  
+  // Topics (dynamic from techSkills)
+  const topicMap: { [key: string]: string[] } = {
+    robotics: ['robotics', 'robot', 'mechatronics', 'automation'],
+    ai: ['ai', 'machine learning', 'ml', 'deep learning', 'artificial intelligence'],
+    data: ['data', 'analytics', 'database', 'sql', 'statistics']
+  };
+  for (const [topic, terms] of Object.entries(topicMap)) {
+    if (terms.some(term => normalized.includes(term))) intent.topics.push(topic);
+  }
+  
+  return intent;
+}
+Update extractProfileAttributes in nlp-utils.ts:
+typescript
+function extractProfileAttributes(description: string): {
+  roles: string[],
+  skills: string[],
+  companies: string[],
+  universities: string[],
+  status: string | null,
+  industries: string[],
+  topics: string[]
+} {
+  const normalized = normalizeText(description);
+  const attributes = {
+    roles: [],
+    skills: [],
+    companies: [],
+    universities: [],
+    status: null,
+    industries: [],
+    topics: []
+  };
+  
+  // Roles
+  for (const title of keywords.jobTitles) {
+    const synonyms = keywords.synonymMap[title] || [];
+    if ([title].concat(synonyms).some(kw => normalized.includes(kw))) attributes.roles.push(title);
+  }
+  
+  // Skills
+  for (const skill of keywords.techSkills.concat(keywords.nontechSkills)) {
+    const synonyms = keywords.synonymMap[skill] || [];
+    if ([skill].concat(synonyms).some(kw => normalized.includes(kw))) attributes.skills.push(skill);
+  }
+  
+  // Companies
+  for (const company of keywords.companies) {
+    if (normalized.includes(company)) attributes.companies.push(company);
+  }
+  for (const [first, second] of keywords.companyPairs) {
+    if (normalized.includes(first) && normalized.includes(second)) attributes.companies.push(`${first} ${second}`);
+  }
+  
+  // Universities
+  for (const uni of keywords.universities) {
+    if (normalized.includes(uni)) attributes.universities.push(uni);
+  }
+  
+  // Status
+  if (keywords.statusKeywords.some(kw => normalized.includes(kw))) attributes.status = 'active';
+  
+  // Industries
+  for (const industry of keywords.industries) {
+    if (normalized.includes(industry)) attributes.industries.push(industry);
+  }
+  
+  // Topics (dynamic)
+  const topicMap: { [key: string]: string[] } = {
+    robotics: ['robotics', 'robot', 'mechatronics', 'automation'],
+    ai: ['ai', 'machine learning', 'ml', 'deep learning', 'artificial intelligence'],
+    data: ['data', 'analytics', 'database', 'sql', 'statistics']
+  };
+  for (const [topic, terms] of Object.entries(topicMap)) {
+    if (terms.some(term => normalized.includes(term))) attributes.topics.push(topic);
+  }
+  
+  return attributes;
+}
+Update keywords.json:
+Add more synonyms to synonymMap (e.g., "vp": ["vice president", "executive"]).
+Optionally, add a topicKeywords section:
+json
+"topicKeywords": {
+  "robotics": ["robotics", "robot", "mechatronics", "automation"],
+  "ai": ["ai", "machine learning", "ml", "deep learning", "artificial intelligence"],
+  "data": ["data", "analytics", "database", "sql", "statistics"]
+}
+3. Add Location Support
+Expand location handling beyond universities to support prompts like "co-op in California."
+Steps:
+Update keywords.json:
+json
+"locations": [
+  "california", "new york", "texas", "ontario", "london", "tokyo", "san francisco", "toronto"
+],
+"locationSynonyms": {
+  "california": ["ca", "san francisco", "los angeles"],
+  "new york": ["ny", "nyc"]
+}
+Modify extractIntent:
+typescript
+for (const loc of keywords.locations || []) {
+  const synonyms = keywords.locationSynonyms?.[loc] || [];
+  if ([loc].concat(synonyms).some(kw => normalized.includes(kw))) intent.locations.push(loc);
+}
+Modify extractProfileAttributes:
+typescript
+for (const loc of keywords.locations || []) {
+  const synonyms = keywords.locationSynonyms?.[loc] || [];
+  if ([loc].concat(synonyms).some(kw => normalized.includes(kw))) attributes.universities.push(loc);
+}
+4. Dynamic Scoring with Contextual Weights
+Replace fixed weights with dynamic ones based on prompt intent.
+Why?
+A prompt like "learning robotics" should prioritize topics, while "Goldman Sachs VPs" should prioritize companies and roles.
+Steps:
+Update calculateSemanticRelevance in nlp-utils.ts:
+typescript
+function calculateSemanticRelevance(
+  queryIntent: ReturnType<typeof extractIntent>,
+  profileAttributes: ReturnType<typeof extractProfileAttributes>
+): number {
+  let score = 0;
+  
+  // Dynamic weights based on intent
+  const weights = {
+    topic: queryIntent.topics.length > 0 ? 15 : 5,
+    company: queryIntent.companies.length > 0 ? 12 : 4,
+    role: queryIntent.roles.length > 0 ? 10 : 3,
+    industry: queryIntent.industries.length > 0 ? 8 : 2,
+    location: queryIntent.locations.length > 0 ? 6 : 1,
+    status: queryIntent.targets.includes('job') ? 5 : 1
+  };
+  
+  // Matches
+  if (queryIntent.topics.some(t => profileAttributes.topics.includes(t))) score += weights.topic;
+  if (queryIntent.companies.some(c => profileAttributes.companies.includes(c))) score += weights.company;
+  if (queryIntent.roles.some(r => profileAttributes.roles.includes(r))) score += weights.role;
+  if (queryIntent.industries.some(i => profileAttributes.industries.includes(i))) score += weights.industry;
+  if (queryIntent.locations.some(l => profileAttributes.universities.includes(l))) score += weights.location;
+  if (queryIntent.targets.includes('job') && profileAttributes.status === 'active') score += weights.status;
+  
+  // Action-specific boosts
+  if (queryIntent.actions.includes('help') && queryIntent.companies.length > 0 &&
+      queryIntent.companies.some(c => profileAttributes.companies.includes(c))) {
+    score += 10; // Referral potential
+  }
+  if (queryIntent.actions.includes('help') && queryIntent.topics.length > 0 &&
+      queryIntent.topics.some(t => profileAttributes.topics.includes(t))) {
+    score += 8; // Expertise boost
+  }
+  
+  // Influence boost (e.g., senior roles)
+  const seniorRoles = ['vp', 'director', 'ceo', 'founder', 'president', 'head', 'lead', 'senior'];
+  if (queryIntent.roles.some(r => seniorRoles.includes(r)) &&
+      profileAttributes.roles.some(r => seniorRoles.includes(r))) {
+    score += 5;
+  }
+  
+  return score;
+}
+5. Combine Scores in analyzeConnections
+Integrate TF-IDF, keyword matching, and semantic scoring with normalization.
+Updated Code:
+typescript
+export function analyzeConnections(
+  connections: { [key: string]: { description: string, profileLink?: string } },
+  query: string
+): { name: string; description: string; score: number; profileLink?: string }[] {
+  const results: { name: string; description: string; keywordScore: number; semanticScore: number; tfidfScore: number; totalScore: number; profileLink?: string }[] = [];
+  
+  // TF-IDF setup
+  const descriptions = Object.values(connections).map(c => c.description);
+  const { tfidfMatrix, idf } = computeTFIDF(descriptions, keywords.tfidfVocabulary);
+  const queryVector = computeQueryTFIDF(query, keywords.tfidfVocabulary, idf);
+  const queryIntent = extractIntent(query);
+  
+  // Compute scores
+  Object.entries(connections).forEach(([name, data], i) => {
+    const profileAttributes = extractProfileAttributes(data.description);
+    const keywordScore = tokenize(query).reduce((sum, token) => {
+      const descTokens = tokenize(data.description);
+      return sum + (descTokens.includes(token) ? 2 : (keywords.synonymMap[token]?.some(syn => descTokens.includes(syn)) ? 1.5 : 0));
+    }, 0);
+    const semanticScore = calculateSemanticRelevance(queryIntent, profileAttributes);
+    const tfidfScore = cosineSimilarity(queryVector, tfidfMatrix[i]);
+    
+    results.push({ name, description: data.description, keywordScore, semanticScore, tfidfScore, totalScore: 0, profileLink: data.profileLink });
+  });
+  
+  // Normalize and combine
+  const maxKeyword = Math.max(...results.map(r => r.keywordScore), 1);
+  const maxSemantic = Math.max(...results.map(r => r.semanticScore), 1);
+  results.forEach(r => {
+    r.totalScore = (r.keywordScore / maxKeyword * 0.2) + (r.semanticScore / maxSemantic * 0.4) + (r.tfidfScore * 0.4);
+    r.totalScore = Math.max(r.totalScore, 0.1);
+  });
+  
+  return results.sort((a, b) => b.totalScore - a.totalScore).map(r => ({
+    name: r.name,
+    description: r.description,
+    score: r.totalScore,
+    profileLink: r.profileLink
+  }));
+}
+Why This is Better
+TF-IDF: Captures semantic similarity (e.g., "robotics" and "automation") beyond exact matches.
+Enhanced Extraction: Handles multiple roles/targets and uses synonyms, improving flexibility.
+Dynamic Weights: Adjusts scoring based on prompt context (e.g., prioritizes companies for "Goldman Sachs VPs").
+Location Support: Broadens geographic matching.
+Influence Boost: Favors senior connections when relevant.
+This solution remains local, uses keywords.json dynamically, and adapts to infinite prompts without hardcoding beyond what’s already in your files.
+Final Instructions
+Update nlp-utils.ts:
+Add TF-IDF functions (computeTFIDF, computeQueryTFIDF, cosineSimilarity).
+Replace extractIntent and extractProfileAttributes with multi-match versions.
+Update calculateSemanticRelevance with dynamic weights.
+Revise analyzeConnections to integrate all scores.
+Update keywords.json:
+Add locations and locationSynonyms.
+Expand synonymMap and optionally add topicKeywords.
+Test with diverse prompts to tweak weights if needed, ensuring optimal performance for your users!
