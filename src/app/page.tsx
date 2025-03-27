@@ -173,7 +173,26 @@ export default function LinkedInConnectionsAnalyzer() {
 
   return (
     <div className="container mx-auto p-4 max-w-3xl">
-      <h1 className="text-2xl font-bold mb-6">LinkedIn Connections Analyzer</h1>
+      <h1 className="text-2xl font-bold mb-6">inExtract</h1>
+      {/* Logo SVG - small and in corner */}
+      <div className="absolute top-2 right-2">
+        <svg width="120" height="120" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" fill="none">
+          {/* The stylized "in" */}
+          <text x="35" y="115" fontFamily="Arial, sans-serif" fontSize="80" fill="black" fontWeight="bold">in</text>
+
+          {/* The abstract "X" */}
+          <path d="M115 65 L165 135 M165 65 L115 135" stroke="black" strokeWidth="12" strokeLinecap="round"/>
+
+          {/* Subtle gradient highlight */}
+          <defs>
+            <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#6EE7B7"/>
+              <stop offset="100%" stopColor="#3B82F6"/>
+            </linearGradient>
+          </defs>
+          <circle cx="160" cy="40" r="10" fill="url(#glow)" />
+        </svg>
+      </div>
 
       {/* Input Section */}
       <div className="space-y-4 mb-6">
@@ -269,7 +288,12 @@ export default function LinkedInConnectionsAnalyzer() {
                                 ))}
                               </div>
                               <div className="text-xs text-gray-500 mt-1">
-                                {match.score.toFixed(1)}
+                                {(
+                                  match.score <= 0.2 ? match.score * 1 : 
+                                  match.score <= 0.3 ? match.score * 2 : 
+                                  match.score <= 0.4 ? match.score * 3 : 
+                                  match.score <= 0.5 ? match.score * 4 : 
+                                  match.score * 5).toFixed(1)}
                               </div>
                             </TableCell>
                           </TableRow>
