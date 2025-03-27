@@ -113,7 +113,7 @@ function extractUnknownImportantTerms(query: string): string[] {
       keywords.jobTitles.includes(token) ||
       Object.values(keywords.topicKeywords).some(terms => terms.includes(token));
     
-    if (!isInKeywordLists) {
+    if (!isInKeywordLists && termPattern.test(token)) {
       importantTerms.push(token);
     }
   }
