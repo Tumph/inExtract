@@ -5,114 +5,116 @@ import { X, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { analyzeConnections } from "@/lib/nlp-utils"
+import { RichTextEditor } from "@/components/RichTextEditor"
 
 export default function LinkedInConnectionsAnalyzer() {
   const [connections, setConnections] = useState<string>("")
   const [searchQuery, setSearchQuery] = useState<string>("")
-  const [matches, setMatches] = useState<{name: string, description: string, score: number}[]>([])
+  const [matches, setMatches] = useState<{name: string, description: string, score: number, profileLink?: string}[]>([])
   const [showPopup, setShowPopup] = useState(false)
   const [isError, setIsError] = useState(false)
   const [errorMessage, setErrorMessage] = useState("")
-  const validateFormat2 = (text: string): boolean => {
-    const hasConnectedOn = text.includes("Connected") && text.includes("ago");
-    const hasMessage = text.includes("Message");
-    const sections = text.split("Message").filter(s=>s.trim()!=="");
-    if(sections.length === 0){
-      return false;
-    }
-    const sampleSection = sections[0];
-    const lines = sampleSection.split('\n').map(line => line.trim()).filter(line => line !== "");
-    //alert(lines.length)
-    const hasEnoughLines = lines.length >= 5;
-    const hasSectionWithConnectedOn = sampleSection.includes("Connected")&&sampleSection.includes("ago");
-    return (hasConnectedOn && hasMessage && hasEnoughLines && hasSectionWithConnectedOn)||(validateFormat2(text));
-  }
+
   // Function to validate LinkedIn connections format
   const validateFormat = (text: string): boolean => {
-    // Check for essential patterns that should be in LinkedIn connections export
-    const hasConnectedOn = text.includes("connected on")
-    const hasMessage = text.includes("Message")
+    // If empty text, return false
+    if (!text.trim()) return false;
     
-    // Check if we can identify at least one complete connection section
-    const sections = text.split("Message").filter(s => s.trim() !== "");
+    // Strip HTML tags for validation
+    const plainText = text.replace(/<[^>]*>/g, '')
     
-    if (sections.length === 0) {
-      return false;
-    }
+    // Check for ANY of these common patterns that suggest LinkedIn connections
+    const hasConnectedOn = plainText.includes("connected on") || plainText.includes("Connected")
+    const hasMessage = plainText.includes("Message")
+    const hasMemberName = plainText.includes("Member’s name") || plainText.includes("name") || plainText.includes("Member's name")
+    const hasMemberOccupation = plainText.includes("Member’s occupation") || plainText.includes("occupation") || plainText.includes("Member's occupation")
+    const hasAgo = plainText.includes(" ago") || plainText.includes("day") || plainText.includes("week") || plainText.includes("month")
+    const hasStatus = plainText.includes("Status is") || plainText.includes("open to work") || plainText.includes("is hiring")
+    const hasProfilePicture = plainText.includes("profile picture")
     
-    // Sample a section to verify it contains the expected pattern
-    const sampleSection = sections[0];
-    const lines = sampleSection.split('\n').map(line => line.trim()).filter(line => line !== "");
+    // Look for @ patterns that suggest university/company affiliations
+    const hasAffiliation = plainText.includes(" @ ") || plainText.includes("@")
     
-    // A valid section should have:
-    // 1. At least 3 non-empty lines (name, description, connected date)
-    // 2. At least one line with "connected on"
-    const hasEnoughLines = lines.length >= 3;
-    const hasSectionWithConnectedOn = sampleSection.includes("connected on");
+    // Split by "Message" to see if we can find sections
+    const sections = plainText.split("Message").filter(s => s.trim() !== "");
     
-    return (hasConnectedOn && hasMessage && hasEnoughLines && hasSectionWithConnectedOn)||(validateFormat2(text));
+    // If text contains "Connections" or multiple of these patterns, it's likely a LinkedIn export
+    const hasConnectionsHeader = plainText.includes("Connections");
+
+    // Count how many LinkedIn-specific patterns we find
+    let patternCount = 0;
+    if (hasConnectedOn) patternCount++;
+    if (hasMessage) patternCount++;
+    if (hasMemberName && hasMemberOccupation) patternCount++;
+    if (hasAgo && hasMessage) patternCount++;
+    if (hasStatus) patternCount++;
+    if (hasProfilePicture) patternCount++;
+    if (hasAffiliation) patternCount++;
+    if (hasConnectionsHeader) patternCount++;
+    
+    // Return true if we have sections or at least 2 LinkedIn patterns
+    return sections.length >= 1 || patternCount >= 2;
   }
 
   // Parse LinkedIn connections from text
   const parseConnections = (text: string) => {
-    // Split the text into sections based on "Message" as the separator
-    // Each section represents one complete connection profile
-    const sections = text.split("Message").filter(s => s.trim() !== "");
+    // Split HTML into sections first to maintain context as requested
+    const messageSections = text.split(/Message/).filter(s => s.trim());
+    const fullText = messageSections.join("");
     
-    const people: {[key: string]: string} = {};
+    // Each person's profile is between <hr> tags
+    const profileSections = fullText.split(/<hr>/).filter(s => s.trim());
+    console.log('Profile sections:', profileSections.length, 'sections found');
     
-    sections.forEach(section => {
-      const lines = section.split('\n').map(line => line.trim()).filter(line => line !== "");
-      
-      // Look for the pattern:
-      // 1. Skip any lines with "profile picture"
-      // 2. Find the first line that isn't "connected on..." - this is the name
-      // 3. The next non-empty line is the description
-      // 4. Ignore lines with "connected on..."
-      
-      let nameFound = false;
-      let name = "";
-      let description = "";
-      if(lines.length !== 6){
-        for (let i = 0; i < lines.length; i++) {
-          const line = lines[i];
+    const people: {[key: string]: {description: string, profileLink: string}} = {};
+    
+    // Process each section to extract data
+    profileSections.forEach((section, index) => {
+      // Only process sections that contain "connected on" as a validation check
+      if (section.includes("connected on")) {
+        try {
+          // Extract LinkedIn profile URL and name from the same <a> tag
+          // The name is the content within the <a> tag that contains the LinkedIn URL
+          const linkedinLinkMatch = /<a[^>]*?href="(https?:\/\/www\.linkedin\.com\/in\/[^"]+)"[^>]*?>([^<]+)<\/a>/i.exec(section);
           
-          // Skip profile picture lines
-          if (line.includes("profile picture")) {
-            continue;
+          if (linkedinLinkMatch) {
+            const profileLink = linkedinLinkMatch[1];
+            const name = linkedinLinkMatch[2].trim();
+            
+            // Extract all paragraph contents (everything between <p> and </p>)
+            const paragraphs = [];
+            const paragraphRegex = /<p>(.*?)<\/p>/g;
+            let match;
+            
+            while ((match = paragraphRegex.exec(section)) !== null) {
+              // Skip paragraphs with <a> tags (they're not the description)
+              if (!match[1].includes('<a')) {
+                paragraphs.push(match[1]);
+              }
+            }
+            
+            // The description is usually the first paragraph without an <a> tag
+            if (paragraphs.length > 0) {
+              const description = paragraphs[0].trim();
+              
+              if (description) {
+                console.log(`Found connection ${index}:`, { name, description, profileLink });
+                
+                // Add to our people object
+                people[name] = {
+                  description,
+                  profileLink
+                };
+              }
+            }
           }
-          
-          // Skip "connected on" lines
-          if (line.includes("connected on")) {
-            continue;
-          }
-          
-          // If we haven't found the name yet, this line is the name
-          if (!nameFound) {
-            // Clean up names with possessive 's (e.g., "Samuel Zhang's")
-            name = line.replace(/'s$/, '');
-            nameFound = true;
-            continue;
-          }
-          
-          // If we have the name, this is the description
-          if (nameFound && !description) {
-            description = line;
-            break; // We have both name and description, no need to continue
-          }
+        } catch (error) {
+          console.error('Error parsing section:', error, section);
         }
-      }else{
-        name = lines[0];
-        description = lines[4];
-      }
-      
-      
-      // Add to the people object if we have both name and description
-      if (name && description) {
-        people[name] = description;
       }
     });
     
+    console.log('Final people object:', Object.keys(people).length, 'connections processed');
     return people;
   }
 
@@ -155,7 +157,10 @@ export default function LinkedInConnectionsAnalyzer() {
     // Always show results, even if low relevance scores
     // Set the matches and show the popup
     setIsError(false)
-    setMatches(results)
+    setMatches(results.map(result => ({
+      ...result,
+      profileLink: parsedConnections[result.name]?.profileLink
+    })))
     setShowPopup(true)
   }
 
@@ -176,12 +181,11 @@ export default function LinkedInConnectionsAnalyzer() {
           <label htmlFor="connections" className="font-medium">
             Paste your LinkedIn connections
           </label>
-          <textarea
-            id="connections"
+          <RichTextEditor
             value={connections}
-            onChange={(e) => setConnections(e.target.value)}
+            onChange={setConnections}
             placeholder="Paste your LinkedIn connections here (format should match the extract.txt example)"
-            className="flex-1 min-h-[200px] p-2 border rounded-md"
+            className="min-h-[200px]"
           />
         </div>
         
@@ -211,7 +215,7 @@ export default function LinkedInConnectionsAnalyzer() {
       {showPopup && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="fixed inset-0" onClick={() => setShowPopup(false)}></div>
-          <div className="bg-background rounded-lg shadow-lg p-6 w-full max-w-2xl z-10">
+          <div className="bg-background rounded-lg shadow-lg p-6 w-full max-w-4xl z-10">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold">
                 {isError ? "Error" : `Connections Matching: "${searchQuery}"`}
@@ -238,8 +242,21 @@ export default function LinkedInConnectionsAnalyzer() {
                       <TableBody>
                         {matches.map((match, index) => (
                           <TableRow key={index} className={index === 0 ? "bg-green-50" : ""}>
-                            <TableCell className="font-medium">{match.name}</TableCell>
-                            <TableCell>{match.description}</TableCell>
+                            <TableCell className="font-medium">
+                              {match.profileLink ? (
+                                <a 
+                                  href={match.profileLink} 
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:text-blue-800 hover:underline"
+                                >
+                                  {match.name}
+                                </a>
+                              ) : (
+                                match.name
+                              )}
+                            </TableCell>
+                            <TableCell>{match.description.length > 75 ? `${match.description.slice(0, 75)}...` : match.description}</TableCell>
                             <TableCell>
                               <div className="flex items-center gap-1">
                                 {Array.from({ length: Math.min(Math.ceil(match.score / 2), 5) }).map((_, i) => (

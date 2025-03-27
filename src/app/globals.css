@@ -120,3 +120,35 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Rich Text Editor Styles */
+.ProseMirror a {
+  color: theme('colors.blue.600');
+  text-decoration: underline;
+}
+
+.ProseMirror a:hover {
+  color: theme('colors.blue.800');
+}
+
+.ProseMirror p {
+  margin-bottom: 0.5em;
+}
+
+.ProseMirror:focus {
+  outline: none;
+}
+
+.ProseMirror [data-placeholder]::before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+  pointer-events: none;
+  position: absolute;
+  opacity: 0.6;
+}
+
+/* Make sure the editor takes full height of its container */
+.tiptap {
+  min-height: 200px;
+  height: 100%;
+}
