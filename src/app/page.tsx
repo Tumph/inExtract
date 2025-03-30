@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { analyzeConnections } from "@/lib/nlp-utils"
 import { RichTextEditor } from "@/components/RichTextEditor"
+import { link } from "fs"
 
 export default function LinkedInConnectionsAnalyzer() {
   const [connections, setConnections] = useState<string>("")
@@ -57,13 +58,23 @@ export default function LinkedInConnectionsAnalyzer() {
   }
 
   // Parse LinkedIn connections from text
+
+  const parseConnections2=(text:string)=>{
+    
+  }
   const parseConnections = (text: string) => {
     // Split HTML into sections first to maintain context as requested
+    
     const messageSections = text.split(/Message/).filter(s => s.trim());
+    messageSections.shift();
     const fullText = messageSections.join("");
     
     // Each person's profile is between <hr> tags
-    const profileSections = fullText.split(/<hr>/).filter(s => s.trim());
+    
+    let profileSections = fullText.split(/<hr>/).filter(s => s.trim());
+    if(!fullText.includes("<hr>")){
+      profileSections = fullText.split(/<strong>/).filter(s => s.trim());
+    }
     console.log('Profile sections:', profileSections.length, 'sections found');
     
     const people: {[key: string]: {description: string, profileLink: string}} = {};
@@ -71,12 +82,11 @@ export default function LinkedInConnectionsAnalyzer() {
     // Process each section to extract data
     profileSections.forEach((section, index) => {
       // Only process sections that contain "connected on" as a validation check
-      if (section.includes("connected on")) {
+      if (section.includes("Connected on")) {
         try {
           // Extract LinkedIn profile URL and name from the same <a> tag
           // The name is the content within the <a> tag that contains the LinkedIn URL
           const linkedinLinkMatch = /<a[^>]*?href="(https?:\/\/www\.linkedin\.com\/in\/[^"]+)"[^>]*?>([^<]+)<\/a>/i.exec(section);
-          
           if (linkedinLinkMatch) {
             const profileLink = linkedinLinkMatch[1];
             const name = linkedinLinkMatch[2].trim();
@@ -110,6 +120,36 @@ export default function LinkedInConnectionsAnalyzer() {
           }
         } catch (error) {
           console.error('Error parsing section:', error, section);
+        }
+      }else{
+
+        function extractName(text:string) {
+          let match = text.match(/^Member’s name(.*?)(?=Member’s occupation|$)/);
+          return match ? match[1].trim() : null;
+        }
+        function extractOccupation(text:string) {
+          let match = text.match(/Member’s occupation(.*)/);
+          return match ? match[1].trim() : null;
+        }
+      
+      
+        try{
+          const linkedinLinkMatch = /<a[^>]*?href="(https?:\/\/www\.linkedin\.com\/in\/[^"]+)"[^>]*?>([^<]+)<\/a>/i.exec(section);
+          if (linkedinLinkMatch) {
+            const profileLink = linkedinLinkMatch[1];
+            const name = extractName(linkedinLinkMatch[2].trim());
+            const description = extractOccupation(linkedinLinkMatch[2].trim());
+            if(name && description && profileLink){
+              people[name] = {
+                description,
+                profileLink
+              };
+            }
+
+          }
+        }catch(error){
+          console.error('Error parsing section:', error, section);
+          alert("erorr");
         }
       }
     });
