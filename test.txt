@@ -1,0 +1,9 @@
+</strong></p>
+</li>
+<li>
+    <p><a target=\"_blank\" rel=\"noopener noreferrer nofollow\" class=\"text-blue-600 underline hover:text-blue-800
+            ember-view mn-connection-card__picture\" href=\"https://www.linkedin.com/in/hetul-patel-5973a62a7/\">Status
+            is reachable</a> </p> <p><a target=\"_blank\" rel=\"noopener noreferrer nofollow\" class=\"text-blue-600
+                underline hover:text-blue-800 ember-view mn-connection-card__link\"
+                href=\"https://www.linkedin.com/in/hetul-patel-5973a62a7/\">Member’s nameHetul PatelMember’s
+                occupationECE @Uwaterloo</a>Connected 1 day ago</p> <p><strong>
